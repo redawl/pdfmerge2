@@ -16,13 +16,15 @@ import (
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 )
 
-func main() {
-    fileWriter, err := os.Create(fmt.Sprintf("%s/%s", os.TempDir(),"pdfmerge.log"))
+func setupLogging() {
+    fileWriter, err := os.OpenFile(fmt.Sprintf("%s/%s", os.TempDir(),"pdfmerge.log"), os.O_RDWR, 0666)
 
     if err != nil {
         slog.Error("Couldn't open log file", "error", err)
         panic("Couldn't open log file")
     }
+
+    defer fileWriter.Close()
 
     logWriter := io.MultiWriter(os.Stdout, fileWriter)
 
@@ -30,6 +32,10 @@ func main() {
         Level: slog.LevelDebug,
     }))
     slog.SetDefault(logger)
+}
+
+func main() {
+    setupLogging()
 
     config := model.NewDefaultConfiguration()
     a := app.New()
@@ -133,10 +139,4 @@ func main() {
     myWindow.SetContent(form)
     myWindow.Resize(fyne.NewSize(800, 600))
     myWindow.ShowAndRun()
-
-    // Cleanup
-    if err := fileWriter.Close(); err != nil {
-        slog.Error("Error closing logfile", "error", err)
-        return
-    }
 }
