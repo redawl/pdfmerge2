@@ -5,4 +5,4 @@ Website = "https://github.com/redawl/pdfmerge2"
   Name = "pdfmerge"
   ID = "com.github.redawl.pdfmerge2"
   Version = "0.0.1"
-  Build = 5
+  Build = 12

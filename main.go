@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
-
+    "errors"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/dialog"
@@ -43,6 +43,18 @@ func main() {
     form := &widget.Form{
 		Items: []*widget.FormItem{},
 		OnSubmit: func() {
+            if len(saveFileLocation.Text) == 0 {
+                slog.Info("User clicked 'Merge pdfs' before selecting save file location")
+                errorDialog := dialog.NewError(errors.New("Choose a save file location before clicking 'Merge pdfs'"), myWindow)
+                errorDialog.Show()
+                return
+            } else if filesToMerge.Front() == nil {
+                slog.Info("User clicked 'Merge pdfs' before selecting pdfs")
+                errorDialog := dialog.NewError(errors.New("Select at least one pdf before clicking 'Merge pdfs'"), myWindow)
+                errorDialog.Show()
+                return
+            }
+            
             slice := []string{}
             for elem := filesToMerge.Front(); elem != nil; elem = elem.Next() {
                 slice = append(slice, elem.Value.(string))
@@ -50,8 +62,10 @@ func main() {
 
             if err := api.MergeCreateFile(slice, saveFileLocation.Text, false, config); err != nil {
                 slog.Error("Error merging pdfs", "error", err)
+                errorDialog := dialog.NewError(errors.New(fmt.Sprintf("Error merging pdfs: Error: %s", err.Error())), myWindow)
+                errorDialog.Show()
             } else {
-                slog.Debug("PDF saved successfully")
+                slog.Info("PDF saved successfully")
                 saveConfirmation := dialog.NewInformation("Success!", fmt.Sprintf("Saved merged pdf to %s successfully", saveFileLocation.Text), myWindow)
                 saveConfirmation.Show()
             }
@@ -68,11 +82,11 @@ func main() {
             file := fileList[i].String()
 
             if strings.HasSuffix(file, ".pdf") {
-                filePath := file[6:]
+                filePath := file[7:]
                 lastSlashIndex := strings.LastIndexAny(file, "/")
 
                 form.Append("", widget.NewCheck(file[lastSlashIndex+1:], func (checked bool) {
-                    slog.Debug("checkbox was clicked")
+                    slog.Info("checkbox was clicked")
 
                     if checked {
                         filesToMerge.PushFront(filePath)
@@ -94,7 +108,7 @@ func main() {
     saveFileDialog := dialog.NewFileSave(func(writer fyne.URIWriteCloser, err error){
         saveLocation := writer.URI().String()
 
-        filepath := saveLocation[6:]
+        filepath := saveLocation[7:]
         saveFileLocation.SetText(filepath)
         saveFileLocation.Show()
     }, myWindow)
@@ -103,12 +117,12 @@ func main() {
     saveFileDialog.Hide()
 
     chooseFolderButton := widget.NewButton("Choose folder", func() {
-        slog.Debug("User clicked 'Choose folder'")
+        slog.Info("User clicked 'Choose folder'")
         openFolderDialog.Show()
     })
 
     chooseSaveFileButton := widget.NewButton("Create save file", func() {
-        slog.Debug("User clicked 'Create save file'")
+        slog.Info("User clicked 'Create save file'")
         saveFileDialog.Show()
     })
 
@@ -117,5 +131,12 @@ func main() {
     form.Append("", chooseSaveFileButton)
 
     myWindow.SetContent(form)
+    myWindow.Resize(fyne.NewSize(800, 600))
     myWindow.ShowAndRun()
+
+    // Cleanup
+    if err := fileWriter.Close(); err != nil {
+        slog.Error("Error closing logfile", "error", err)
+        return
+    }
 }
