@@ -7,10 +7,12 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/redawl/pdfmerge/pdf"
 )
@@ -42,26 +44,8 @@ func main() {
     filesToMerge := list.New()
 
     saveFileLocation := widget.NewEntry()
-    saveFileLocation.Hide()
-
-    form := &widget.Form{
-		Items: []*widget.FormItem{},
-		OnSubmit: func() {
-            if err := pdf.MergePdfs(*filesToMerge, saveFileLocation.Text); err != nil {
-                slog.Error("Error merging pdfs", "error", err)
-                errorDialog := dialog.NewError(err, myWindow)
-                errorDialog.Show()
-            } else {
-                slog.Info("PDF saved successfully")
-                saveConfirmation := dialog.NewInformation("Success!", fmt.Sprintf("Saved merged pdf to %s successfully", saveFileLocation.Text), myWindow)
-                saveConfirmation.Show()
-            }
-	    },
-        SubmitText: "Merge pdfs",
-    }
 
     fileListContainer := container.NewVBox()
-    fileListContainer.Hide()
 
     openFolderDialog := dialog.NewFolderOpen(func (reader fyne.ListableURI, err error) {
         if err != nil {
@@ -85,7 +69,7 @@ func main() {
                 filePath := file[7:]
                 lastSlashIndex := strings.LastIndexAny(file, "/")
 
-                fileListContainer.Add(widget.NewCheck(file[lastSlashIndex+1:], func (checked bool) {
+                newCheckbox := widget.NewCheck(file[lastSlashIndex+1:], func (checked bool) {
                     slog.Info("checkbox was clicked")
 
                     if checked {
@@ -98,7 +82,11 @@ func main() {
                             }
                         }
                     }
-                }))
+                })
+
+                newCheckbox.Checked = true
+
+                fileListContainer.Add(newCheckbox)
             }
 
             slog.Info("Filename", "name", file)
@@ -126,9 +114,17 @@ func main() {
         saveFileLocation.Show()
     }, myWindow)
 
-
-    openFolderDialog.Hide()
-    saveFileDialog.Hide()
+    mergePdfsButton := widget.NewButton("Merge pdfs", func() {
+        if err := pdf.MergePdfs(*filesToMerge, saveFileLocation.Text); err != nil {
+            slog.Error("Error merging pdfs", "error", err)
+            errorDialog := dialog.NewError(err, myWindow)
+            errorDialog.Show()
+        } else {
+            slog.Info("PDF saved successfully")
+            saveConfirmation := dialog.NewInformation("Success!", fmt.Sprintf("Saved merged pdf to %s successfully", saveFileLocation.Text), myWindow)
+            saveConfirmation.Show()
+        }
+    })
 
     chooseFolderButton := widget.NewButton("Choose folder", func() {
         slog.Info("User clicked 'Choose folder'")
@@ -139,12 +135,16 @@ func main() {
         slog.Info("User clicked 'Create save file'")
         saveFileDialog.Show()
     })
-    form.Append("", fileListContainer)
-    form.Append("", chooseFolderButton)
-    form.Append("", saveFileLocation)
-    form.Append("", chooseSaveFileButton)
 
-    myWindow.SetContent(form)
+    masterLayout := container.New(layout.NewVBoxLayout(),
+        container.NewGridWithColumns(2,
+            container.NewVBox(chooseFolderButton), fileListContainer,
+            container.NewVBox(chooseSaveFileButton), container.NewVBox(saveFileLocation),
+            container.NewVBox(mergePdfsButton),
+        ),
+    )
+
+    myWindow.SetContent(masterLayout)
     myWindow.Resize(fyne.NewSize(800, 600))
     myWindow.ShowAndRun()
 }
