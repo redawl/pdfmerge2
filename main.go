@@ -11,12 +11,23 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/redawl/pdfmerge/pdf"
 )
+
+func NewHVBox(objects ...fyne.CanvasObject) fyne.CanvasObject {
+    vBox := container.NewVBox()
+
+    for i := 0; i < len(objects); i++ {
+        vBox.Add(objects[i])
+    }
+
+    return container.NewHBox(vBox)
+}
 
 func setupLogging(debugEnabled bool) {
     fileWriter, err := os.OpenFile(fmt.Sprintf("%s/%s", os.TempDir(),"pdfmerge.log"), os.O_RDWR, 0666)
@@ -50,8 +61,6 @@ func main() {
 
     filesToMerge := list.New()
 
-    saveFileLocation := widget.NewEntry()
-
     fileListContainer := container.NewVBox()
 
     openFolderDialog := dialog.NewFolderOpen(func (reader fyne.ListableURI, err error) {
@@ -67,23 +76,20 @@ func main() {
 
         fileListContainer.RemoveAll()
 
-        fileListContainer.Add(widget.NewLabel("PDFs to merge"))
+        fileListContainer.Add(canvas.NewText("PDFs to merge", nil))
 
         for i := 0; i < len(fileList); i++ {
-            file := fileList[i].String()
-
-            if strings.HasSuffix(file, ".pdf") {
-                filePath := file[7:]
-                lastSlashIndex := strings.LastIndexAny(file, "/")
-
-                newCheckbox := widget.NewCheck(file[lastSlashIndex+1:], func (checked bool) {
+            file := fileList[i]
+            if strings.HasSuffix(file.Name(), ".pdf") {
+                filesToMerge.PushFront(file.Path())
+                newCheckbox := widget.NewCheck(file.Name(), func (checked bool) {
                     slog.Debug("checkbox was clicked")
 
                     if checked {
-                        filesToMerge.PushFront(filePath)
+                        filesToMerge.PushFront(file.Path())
                     } else {
                         for elem := filesToMerge.Front(); elem != nil; elem = elem.Next() {
-                            if elem.Value == filePath {
+                            if elem.Value == file.Path() {
                                 filesToMerge.Remove(elem)
                                 break
                             }
@@ -104,51 +110,47 @@ func main() {
 
     saveFileDialog := dialog.NewFileSave(func(writer fyne.URIWriteCloser, err error){
         if err != nil {
-            slog.Error("Error occurred during selection of save file", "error", err)
-            return
-        } else if writer == nil {
-            slog.Debug("User clicked cancel or didn't select a file")
+            slog.Error("Error merging pdfs", "error", err)
+            errorDialog := dialog.NewError(err, myWindow)
+            errorDialog.Show()
             return
         }
-        saveLocation := writer.URI().String()
 
-        filepath := saveLocation[7:]
-        if strings.HasSuffix(filepath, ".pdf") {
-            saveFileLocation.SetText(filepath)
-        } else {
-            saveFileLocation.SetText(filepath + ".pdf")
+        if writer == nil {
+            slog.Debug("User didn't select file to write to")
+            return
         }
-        saveFileLocation.Show()
-    }, myWindow)
 
-    mergePdfsButton := widget.NewButton("Merge pdfs", func() {
-        if err := pdf.MergePdfs(*filesToMerge, saveFileLocation.Text); err != nil {
+        if err := pdf.MergePdfs(*filesToMerge, writer.URI().Path()); err != nil {
             slog.Error("Error merging pdfs", "error", err)
             errorDialog := dialog.NewError(err, myWindow)
             errorDialog.Show()
         } else {
             slog.Info("PDF saved successfully")
-            saveConfirmation := dialog.NewInformation("Success!", fmt.Sprintf("Saved merged pdf to %s successfully", saveFileLocation.Text), myWindow)
+            saveConfirmation := dialog.NewInformation("Success!", fmt.Sprintf("Saved merged pdf to %s successfully", writer.URI().Path()), myWindow)
             saveConfirmation.Show()
         }
-    })
+    }, myWindow)
 
-    chooseFolderButton := widget.NewButton("Choose folder", func() {
-        slog.Info("User clicked 'Choose folder'")
-        openFolderDialog.Show()
-    })
-
-    chooseSaveFileButton := widget.NewButton("Create save file", func() {
-        slog.Info("User clicked 'Create save file'")
+    mergePdfsButton := widget.NewButton("Merge pdfs", func() {
         saveFileDialog.Show()
     })
 
+    chooseFolderButton := widget.NewButton("Find pdfs", func() {
+        slog.Info("User clicked 'Find pdfs'")
+        openFolderDialog.Show()
+    })
+
     masterLayout := container.New(layout.NewVBoxLayout(),
-        container.NewGridWithColumns(2,
-            container.NewVBox(chooseFolderButton), fileListContainer,
-            container.NewVBox(chooseSaveFileButton), container.NewVBox(saveFileLocation),
-            container.NewVBox(mergePdfsButton),
+        &canvas.Text{
+            Text: "PDF merge utility",
+            TextSize: 40,
+        },
+        container.NewHBox(
+            NewHVBox(chooseFolderButton),
         ),
+        fileListContainer,
+        NewHVBox(mergePdfsButton),
     )
 
     myWindow.SetContent(masterLayout)

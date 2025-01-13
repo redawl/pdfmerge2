@@ -25,6 +25,7 @@ func MergePdfs(inPdfs list.List, outPdf string) error {
         slice = append(slice, elem.Value.(string))
     }
 
+    slog.Debug("Merging pdfs", "inPdfs", slice, "outPdf", outPdf)
     if err := api.MergeCreateFile(slice, outPdf, false, config); err != nil {
         slog.Error("Error merging pdfs", "error", err)
         return errors.New(fmt.Sprintf("Error merging pdfs: Error: %s", err.Error()))
