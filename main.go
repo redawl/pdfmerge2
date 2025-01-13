@@ -2,6 +2,7 @@ package main
 
 import (
 	"container/list"
+	"flag"
 	"fmt"
 	"io"
 	"log/slog"
@@ -17,7 +18,7 @@ import (
 	"github.com/redawl/pdfmerge/pdf"
 )
 
-func setupLogging() {
+func setupLogging(debugEnabled bool) {
     fileWriter, err := os.OpenFile(fmt.Sprintf("%s/%s", os.TempDir(),"pdfmerge.log"), os.O_RDWR, 0666)
 
     if err != nil {
@@ -28,15 +29,21 @@ func setupLogging() {
     defer fileWriter.Close()
 
     logWriter := io.MultiWriter(os.Stdout, fileWriter)
-
+    logLevel := slog.LevelInfo
+    if debugEnabled {
+        logLevel = slog.LevelDebug
+    }
     logger := slog.New(slog.NewTextHandler(logWriter, &slog.HandlerOptions{
-        Level: slog.LevelDebug,
+        Level: logLevel,
     }))
     slog.SetDefault(logger)
 }
 
 func main() {
-    setupLogging()
+    debugEnabled := flag.Bool("d", false, "Enable debug logging to TEMP_DIR/pdfmerge.log and stdout")
+    flag.Parse()
+    setupLogging(*debugEnabled)
+
 
     a := app.New()
     myWindow := a.NewWindow("PDF merge utility")
@@ -70,7 +77,7 @@ func main() {
                 lastSlashIndex := strings.LastIndexAny(file, "/")
 
                 newCheckbox := widget.NewCheck(file[lastSlashIndex+1:], func (checked bool) {
-                    slog.Info("checkbox was clicked")
+                    slog.Debug("checkbox was clicked")
 
                     if checked {
                         filesToMerge.PushFront(filePath)
@@ -89,7 +96,7 @@ func main() {
                 fileListContainer.Add(newCheckbox)
             }
 
-            slog.Info("Filename", "name", file)
+            slog.Debug("Found pdf", "name", file)
         }
 
         fileListContainer.Show()
