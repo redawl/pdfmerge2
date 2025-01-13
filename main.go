@@ -14,7 +14,6 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/redawl/pdfmerge/pdf"
 )
@@ -131,14 +130,18 @@ func main() {
         openFolderDialog.Show()
     })
 
-    masterLayout := container.New(layout.NewVBoxLayout(),
-        &canvas.Text{
-            Text: "PDF merge utility",
-            TextSize: 40,
-        },
-        container.NewHBox(chooseFolderButton),
-        fileListContainer,
+    masterLayout := container.NewBorder(
+        container.NewVBox(
+            &canvas.Text{
+                Text: "PDF merge utility",
+                TextSize: 40,
+            },
+            container.NewHBox(chooseFolderButton),
+        ),
         container.NewHBox(mergePdfsButton),
+        nil,
+        nil,
+        fileListContainer,
     )
 
     myWindow.SetContent(masterLayout)
