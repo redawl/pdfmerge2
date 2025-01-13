@@ -19,16 +19,6 @@ import (
 	"github.com/redawl/pdfmerge/pdf"
 )
 
-func NewHVBox(objects ...fyne.CanvasObject) fyne.CanvasObject {
-    vBox := container.NewVBox()
-
-    for i := 0; i < len(objects); i++ {
-        vBox.Add(objects[i])
-    }
-
-    return container.NewHBox(vBox)
-}
-
 func setupLogging(debugEnabled bool) {
     fileWriter, err := os.OpenFile(fmt.Sprintf("%s/%s", os.TempDir(),"pdfmerge.log"), os.O_RDWR, 0666)
 
@@ -81,6 +71,7 @@ func main() {
         for i := 0; i < len(fileList); i++ {
             file := fileList[i]
             if strings.HasSuffix(file.Name(), ".pdf") {
+                slog.Debug("Found pdf", "name", file.Name())
                 filesToMerge.PushFront(file.Path())
                 newCheckbox := widget.NewCheck(file.Name(), func (checked bool) {
                     slog.Debug("checkbox was clicked")
@@ -102,7 +93,6 @@ func main() {
                 fileListContainer.Add(newCheckbox)
             }
 
-            slog.Debug("Found pdf", "name", file)
         }
 
         fileListContainer.Show()
@@ -146,11 +136,9 @@ func main() {
             Text: "PDF merge utility",
             TextSize: 40,
         },
-        container.NewHBox(
-            NewHVBox(chooseFolderButton),
-        ),
+        container.NewHBox(chooseFolderButton),
         fileListContainer,
-        NewHVBox(mergePdfsButton),
+        container.NewHBox(mergePdfsButton),
     )
 
     myWindow.SetContent(masterLayout)
