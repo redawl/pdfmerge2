@@ -1,8 +1,8 @@
 Website = "https://github.com/redawl/pdfmerge2"
 
 [Details]
-  Icon = "Icon.png"
+  Icon = "assets/Icon.png"
   Name = "pdfmerge"
   ID = "com.github.redawl.pdfmerge2"
-  Version = "0.1.0"
-  Build = 16
+  Version = "0.2.0"
+  Build = 21

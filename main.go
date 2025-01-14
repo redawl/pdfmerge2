@@ -1,20 +1,22 @@
 package main
 
 import (
-	"container/list"
 	"flag"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"strings"
+    "errors"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+	"github.com/redawl/pdfmerge/model"
 	"github.com/redawl/pdfmerge/pdf"
 )
 
@@ -40,17 +42,40 @@ func setupLogging(debugEnabled bool) {
 }
 
 func main() {
-    debugEnabled := flag.Bool("d", false, "Enable debug logging to TEMP_DIR/pdfmerge.log and stdout")
+    debugEnabled := flag.Bool("d", false, fmt.Sprintf("Enable debug logging to %s/pdfmerge.log and stdout", os.TempDir()))
     flag.Parse()
     setupLogging(*debugEnabled)
-
 
     a := app.New()
     myWindow := a.NewWindow("PDF merge utility")
 
-    filesToMerge := list.New()
+    filesToMerge := binding.NewUntypedList()
 
-    fileListContainer := container.NewVBox()
+    fileListContainer := widget.NewListWithData(filesToMerge,
+        func() fyne.CanvasObject {
+            return NewDraggableCheck("template", func(b bool) {})
+        },
+        func(di binding.DataItem, co fyne.CanvasObject) {
+            uriBinding := di.(binding.Untyped)
+
+            value, err := uriBinding.Get()
+
+            if err != nil {
+                slog.Error("Error Getting Uri", "error", err)
+                return
+            }
+
+            uriChecked := value.(*model.UriChecked)
+
+            checkBox := co.(*DraggableCheck)
+
+            checkBox.SetText(uriChecked.Uri.Name())
+            checkBox.Checked = uriChecked.Checked
+            checkBox.OnChanged = func(b bool) {
+                uriChecked.Checked = b
+            }
+        },
+    )
 
     openFolderDialog := dialog.NewFolderOpen(func (reader fyne.ListableURI, err error) {
         if err != nil {
@@ -63,38 +88,22 @@ func main() {
 
         fileList, err := reader.List()
 
-        fileListContainer.RemoveAll()
-
-        fileListContainer.Add(canvas.NewText("PDFs to merge", nil))
+        if err != nil {
+            slog.Debug("Error occurred when retrieving file list", "error", err)
+            return
+        }
 
         for i := 0; i < len(fileList); i++ {
             file := fileList[i]
             if strings.HasSuffix(file.Name(), ".pdf") {
                 slog.Debug("Found pdf", "name", file.Name())
-                filesToMerge.PushFront(file.Path())
-                newCheckbox := widget.NewCheck(file.Name(), func (checked bool) {
-                    slog.Debug("checkbox was clicked")
-
-                    if checked {
-                        filesToMerge.PushFront(file.Path())
-                    } else {
-                        for elem := filesToMerge.Front(); elem != nil; elem = elem.Next() {
-                            if elem.Value == file.Path() {
-                                filesToMerge.Remove(elem)
-                                break
-                            }
-                        }
-                    }
+                filesToMerge.Append(&model.UriChecked{
+                    Uri: file,
+                    Checked: true,
                 })
-
-                newCheckbox.Checked = true
-
-                fileListContainer.Add(newCheckbox)
             }
-
         }
 
-        fileListContainer.Show()
     }, myWindow)
 
     saveFileDialog := dialog.NewFileSave(func(writer fyne.URIWriteCloser, err error){
@@ -110,7 +119,7 @@ func main() {
             return
         }
 
-        if err := pdf.MergePdfs(*filesToMerge, writer.URI().Path()); err != nil {
+        if err := pdf.MergePdfs(filesToMerge, writer.URI().Path()); err != nil {
             slog.Error("Error merging pdfs", "error", err)
             errorDialog := dialog.NewError(err, myWindow)
             errorDialog.Show()
@@ -122,7 +131,28 @@ func main() {
     }, myWindow)
 
     mergePdfsButton := widget.NewButton("Merge pdfs", func() {
-        saveFileDialog.Show()
+        checkedCount := 0
+
+        for i := 0; i < filesToMerge.Length(); i++ {
+            value, err := filesToMerge.GetValue(i)
+
+            if err != nil {
+                slog.Error("Error validating files list", "error", err)
+                continue
+            }
+
+            if value.(*model.UriChecked).Checked {
+                checkedCount++
+            }
+        }
+
+        if checkedCount == 0 {
+            slog.Info("User clicked 'Merge pdfs' without selectnig any pdfs")
+            errorDialog := dialog.NewError(errors.New("Please select at least 1 pdf before clicking 'Merge pdfs'"), myWindow)
+            errorDialog.Show()
+        } else {
+            saveFileDialog.Show()
+        }
     })
 
     chooseFolderButton := widget.NewButton("Find pdfs", func() {
@@ -130,12 +160,25 @@ func main() {
         openFolderDialog.Show()
     })
 
+    headerText := &canvas.Text{
+        Text: "PDF merge utility",
+        TextSize: 40,
+    }
+
+    headerIcon := &canvas.Image{
+        Resource: a.Metadata().Icon,
+        FillMode: canvas.ImageFillContain,
+        ScaleMode: canvas.ImageScaleFastest,
+    }
+
+    headerIcon.SetMinSize(fyne.NewSize(headerText.MinSize().Height, headerText.MinSize().Height))
+
     masterLayout := container.NewBorder(
         container.NewVBox(
-            &canvas.Text{
-                Text: "PDF merge utility",
-                TextSize: 40,
-            },
+            container.NewHBox(
+                headerIcon,
+                headerText,
+            ),
             container.NewHBox(chooseFolderButton),
         ),
         container.NewHBox(mergePdfsButton),
@@ -143,7 +186,6 @@ func main() {
         nil,
         fileListContainer,
     )
-
     myWindow.SetContent(masterLayout)
     myWindow.Resize(fyne.NewSize(800, 600))
     myWindow.ShowAndRun()
