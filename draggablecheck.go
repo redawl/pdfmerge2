@@ -38,3 +38,4 @@ func (check *DraggableCheck) DragEnd() {
     check.initialX = -1
     check.initialY = -1
 }
+

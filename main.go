@@ -1,13 +1,13 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"strings"
-    "errors"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -15,13 +15,14 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
+    "fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
 	"github.com/redawl/pdfmerge/model"
 	"github.com/redawl/pdfmerge/pdf"
 )
 
 func setupLogging(debugEnabled bool) {
-    fileWriter, err := os.OpenFile(fmt.Sprintf("%s/%s", os.TempDir(),"pdfmerge.log"), os.O_RDWR, 0666)
+    fileWriter, err := os.OpenFile(fmt.Sprintf("%s/%s", os.TempDir(),"pdfmerge.log"), os.O_RDWR | os.O_CREATE, 0666)
 
     if err != nil {
         slog.Error("Couldn't open log file", "error", err)
@@ -44,12 +45,27 @@ func setupLogging(debugEnabled bool) {
 func main() {
     debugEnabled := flag.Bool("d", false, fmt.Sprintf("Enable debug logging to %s/pdfmerge.log and stdout", os.TempDir()))
     flag.Parse()
+    
+
     setupLogging(*debugEnabled)
 
     a := app.New()
     myWindow := a.NewWindow("PDF merge utility")
 
+    fileCountLabel := widget.NewLabel("0 files")
+
     filesToMerge := binding.NewUntypedList()
+
+    for _, arg := range flag.Args() {
+        if strings.HasSuffix(arg, ".pdf") {
+            newUri := storage.NewFileURI(arg)
+            filesToMerge.Append(&model.UriChecked{
+                Uri: newUri,
+                Checked: true,
+            })
+        }
+
+    }
 
     fileListContainer := widget.NewListWithData(filesToMerge,
         func() fyne.CanvasObject {
@@ -74,8 +90,12 @@ func main() {
             checkBox.OnChanged = func(b bool) {
                 uriChecked.Checked = b
             }
+            // Call refresh to ensure checkbox is updated 
+            // with visual state
+            checkBox.Refresh()
         },
     )
+
 
     openFolderDialog := dialog.NewFolderOpen(func (reader fyne.ListableURI, err error) {
         if err != nil {
@@ -104,6 +124,8 @@ func main() {
             }
         }
 
+        fileCountLabel.SetText(fmt.Sprintf("(%d files)", filesToMerge.Length()))
+
     }, myWindow)
 
     saveFileDialog := dialog.NewFileSave(func(writer fyne.URIWriteCloser, err error){
@@ -124,13 +146,13 @@ func main() {
             errorDialog := dialog.NewError(err, myWindow)
             errorDialog.Show()
         } else {
-            slog.Info("PDF saved successfully")
+            slog.Debug("PDF saved successfully")
             saveConfirmation := dialog.NewInformation("Success!", fmt.Sprintf("Saved merged pdf to %s successfully", writer.URI().Path()), myWindow)
             saveConfirmation.Show()
         }
     }, myWindow)
 
-    mergePdfsButton := widget.NewButton("Merge pdfs", func() {
+    mergePdfsButton := widget.NewButton("Merge", func() {
         checkedCount := 0
 
         for i := 0; i < filesToMerge.Length(); i++ {
@@ -147,16 +169,16 @@ func main() {
         }
 
         if checkedCount == 0 {
-            slog.Info("User clicked 'Merge pdfs' without selectnig any pdfs")
-            errorDialog := dialog.NewError(errors.New("Please select at least 1 pdf before clicking 'Merge pdfs'"), myWindow)
+            slog.Debug("User clicked 'Merge' without selectnig any pdfs")
+            errorDialog := dialog.NewError(errors.New("Select at least 1 pdf before clicking 'Merge'"), myWindow)
             errorDialog.Show()
         } else {
             saveFileDialog.Show()
         }
     })
 
-    chooseFolderButton := widget.NewButton("Find pdfs", func() {
-        slog.Info("User clicked 'Find pdfs'")
+    chooseFolderButton := widget.NewButton("Add files", func() {
+        slog.Debug("User clicked 'Add files'")
         openFolderDialog.Show()
     })
 
@@ -172,14 +194,13 @@ func main() {
     }
 
     headerIcon.SetMinSize(fyne.NewSize(headerText.MinSize().Height, headerText.MinSize().Height))
-
     masterLayout := container.NewBorder(
         container.NewVBox(
             container.NewHBox(
                 headerIcon,
                 headerText,
             ),
-            container.NewHBox(chooseFolderButton),
+            container.NewHBox(chooseFolderButton, fileCountLabel),
         ),
         container.NewHBox(mergePdfsButton),
         nil,
