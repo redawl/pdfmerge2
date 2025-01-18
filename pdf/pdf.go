@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"log/slog"
 
-	"fyne.io/fyne/v2/data/binding"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
-    pdfMergeModel "github.com/redawl/pdfmerge/model"
+	"github.com/redawl/pdfmerge/types"
 )
 
-func MergePdfs(inPdfs binding.UntypedList, outPdf string) error {
+func MergePdfs(inPdfs *types.FileList, outPdf string) error {
     config := model.NewDefaultConfiguration()
 
     if len(outPdf) == 0 {
@@ -24,13 +23,12 @@ func MergePdfs(inPdfs binding.UntypedList, outPdf string) error {
 
     slice := []string{}
     for i := 0; i < inPdfs.Length(); i++ {
-        elem, err := inPdfs.GetValue(i)
+        uriChecked, err := inPdfs.GetItem(i)
 
         if err != nil {
             return err
         }
 
-        uriChecked := elem.(*pdfMergeModel.UriChecked)
         if uriChecked.Checked {
             slice = append(slice, uriChecked.Uri.Path())
         }

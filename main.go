@@ -12,11 +12,9 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/storage"
-	"fyne.io/fyne/v2/widget"
-	"github.com/redawl/pdfmerge/model"
 	"github.com/redawl/pdfmerge/pdf"
+	"github.com/redawl/pdfmerge/types"
 )
 
 func setupLogging(debugEnabled bool) {
@@ -47,50 +45,19 @@ func main() {
     window := a.NewWindow("PDF merge utility")
     window.Resize(fyne.NewSize(800, 600))
 
-    filesToMerge := binding.NewUntypedList()
+    fileList := types.NewFileList()
 
     for _, arg := range flag.Args() {
         if strings.HasSuffix(arg, ".pdf") {
             newUri := storage.NewFileURI(arg)
-            filesToMerge.Append(&model.UriChecked{
-                Uri: newUri,
-                Checked: true,
-            })
+            fileList.AppendItem(newUri)
         }
     }
 
-    fileListContainer := widget.NewListWithData(filesToMerge,
-        func() fyne.CanvasObject {
-            return NewDraggableCheck("template", func(b bool) {})
-        },
-        func(di binding.DataItem, co fyne.CanvasObject) {
-            uriBinding := di.(binding.Untyped)
 
-            value, err := uriBinding.Get()
+    addFilesButton, fileCountLabel := pdf.AddFilesDialog(window, fileList)
 
-            if err != nil {
-                slog.Error("Error Getting Uri", "error", err)
-                return
-            }
-
-            uriChecked := value.(*model.UriChecked)
-
-            checkBox := co.(*DraggableCheck)
-
-            checkBox.SetText(uriChecked.Uri.Name())
-            checkBox.Checked = uriChecked.Checked
-            checkBox.OnChanged = func(b bool) {
-                uriChecked.Checked = b
-            }
-            // Call refresh to ensure checkbox is updated 
-            // with visual state
-            checkBox.Refresh()
-        },
-    )
-
-    addFilesButton, fileCountLabel := pdf.AddFilesDialog(window, filesToMerge)
-
-    mergePdfsButton := pdf.SaveFileDialog(window, filesToMerge)
+    mergePdfsButton := pdf.SaveFileDialog(window, fileList)
 
     headerText := &canvas.Text{
         Text: "PDF merge utility",
@@ -116,7 +83,7 @@ func main() {
         container.NewHBox(mergePdfsButton),
         nil,
         nil,
-        fileListContainer,
+        fileList,
     )
 
     window.SetContent(masterLayout)

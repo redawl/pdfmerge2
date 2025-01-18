@@ -11,11 +11,11 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
-	"github.com/redawl/pdfmerge/model"
+	"github.com/redawl/pdfmerge/types"
 	nativedialog "github.com/tawesoft/golib/v2/dialog"
 )
 
-func SaveFileDialog(window fyne.Window, filesList binding.UntypedList) (*widget.Button) {
+func SaveFileDialog(window fyne.Window, filesList *types.FileList) (*widget.Button) {
     saveFileDialog := dialog.NewFileSave(func(writer fyne.URIWriteCloser, err error){
         if err != nil {
             slog.Error("Error merging pdfs", "error", err)
@@ -44,14 +44,14 @@ func SaveFileDialog(window fyne.Window, filesList binding.UntypedList) (*widget.
         checkedCount := 0
 
         for i := 0; i < filesList.Length(); i++ {
-            value, err := filesList.GetValue(i)
+            value, err := filesList.GetItem(i)
 
             if err != nil {
                 slog.Error("Error validating files list", "error", err)
                 continue
             }
 
-            if value.(*model.UriChecked).Checked {
+            if value.Checked {
                 checkedCount++
             }
         }
@@ -98,9 +98,8 @@ func SaveFileDialog(window fyne.Window, filesList binding.UntypedList) (*widget.
     return mergePdfsButton
 }
 
-func AddFilesDialog(window fyne.Window, filesList binding.UntypedList) (*widget.Button, *widget.Label) {
-    fileCount := binding.NewInt()
-    fileCountLabel := widget.NewLabelWithData(binding.NewSprintf("(%d files)", fileCount))
+func AddFilesDialog(window fyne.Window, filesList *types.FileList) (*widget.Button, *widget.Label) {
+    fileCountLabel := widget.NewLabelWithData(binding.NewSprintf("(%d files)", filesList.CheckedCount))
 
     openFolderDialog := dialog.NewFolderOpen(func (reader fyne.ListableURI, err error) {
         if err != nil {
@@ -122,14 +121,10 @@ func AddFilesDialog(window fyne.Window, filesList binding.UntypedList) (*widget.
             file := fileList[i]
             if strings.HasSuffix(file.Name(), ".pdf") {
                 slog.Debug("Found pdf", "name", file.Name())
-                filesList.Append(&model.UriChecked{
-                    Uri: file,
-                    Checked: true,
-                })
+                filesList.AppendItem(file)
             }
         }
 
-        fileCount.Set(filesList.Length())
     }, window)
 
     addFilesButton := widget.NewButton("Add files", func() {
@@ -170,13 +165,9 @@ func AddFilesDialog(window fyne.Window, filesList binding.UntypedList) (*widget.
                 file := fileList[i]
                 if strings.HasSuffix(file, ".pdf") {
                     slog.Debug("Found pdf", "name", file)
-                    filesList.Append(&model.UriChecked{
-                        Uri: storage.NewFileURI(file),
-                        Checked: true,
-                    })
+                    filesList.AppendItem(storage.NewFileURI(file))
                 }
             }
-            fileCount.Set(filesList.Length())
         }
     })
 
