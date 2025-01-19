@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
@@ -41,22 +40,7 @@ func SaveFileDialog(window fyne.Window, filesList *types.FileList) (*widget.Butt
     }, window)
 
     mergePdfsButton := widget.NewButton("Merge", func() {
-        checkedCount := 0
-
-        for i := 0; i < filesList.Length(); i++ {
-            value, err := filesList.GetItem(i)
-
-            if err != nil {
-                slog.Error("Error validating files list", "error", err)
-                continue
-            }
-
-            if value.Checked {
-                checkedCount++
-            }
-        }
-
-        if checkedCount == 0 {
+        if filesList.Length() == 0 {
             slog.Debug("User clicked 'Merge' without selectnig any pdfs")
             errorDialog := dialog.NewError(errors.New("Select at least 1 pdf before clicking 'Merge'"), window)
             errorDialog.Show()
@@ -99,7 +83,7 @@ func SaveFileDialog(window fyne.Window, filesList *types.FileList) (*widget.Butt
 }
 
 func AddFilesDialog(window fyne.Window, filesList *types.FileList) (*widget.Button, *widget.Label) {
-    fileCountLabel := widget.NewLabelWithData(binding.NewSprintf("(%d files)", filesList.CheckedCount))
+    fileCountLabel := widget.NewLabel("(0 files)")
 
     openFolderDialog := dialog.NewFolderOpen(func (reader fyne.ListableURI, err error) {
         if err != nil {

@@ -9,13 +9,11 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/widget"
-	"github.com/redawl/pdfmerge/model"
 )
 
 type FileList struct {
     widget.List
-    DataList binding.UntypedList
-    CheckedCount binding.Int
+    DataList binding.URIList
 }
 
 func newList(length func() int, createItem func() fyne.CanvasObject, updateItem func(int, fyne.CanvasObject)) *FileList {
@@ -26,22 +24,6 @@ func newList(length func() int, createItem func() fyne.CanvasObject, updateItem 
 	list.ExtendBaseWidget(list)
 
 	return list
-}
-func newListWithData(data binding.DataList, createItem func() fyne.CanvasObject, updateItem func(binding.DataItem, fyne.CanvasObject)) *FileList {
-	l := newList(
-		data.Length,
-		createItem,
-        func(i int, o fyne.CanvasObject) {
-			item, err := data.GetItem(i)
-			if err != nil {
-				fyne.LogError(fmt.Sprintf("Error getting data item %d", i), err)
-				return
-			}
-			updateItem(item, o)
-		})
-
-	data.AddListener(binding.NewDataListener(l.Refresh))
-	return l
 }
 
 func IncrementIntBinding(intBinding binding.Int) {
@@ -65,49 +47,33 @@ func DecrementIntBinding(intBinding binding.Int) {
 }
 
 func NewFileList () (*FileList) {
-    dataList := binding.NewUntypedList()
-    checkedCount := binding.NewInt()
-    fileList := newListWithData(
-        dataList,
+    dataList := binding.NewURIList()
+
+    fileList := newList(
+        dataList.Length,
         func() fyne.CanvasObject {
-            check := NewDraggableCheck("template", func(b bool) {})
+            fileItem := NewFileItem(nil, func() {})
             
-            return check
+            return fileItem
         },
-        func(di binding.DataItem, co fyne.CanvasObject) {
-            uriBinding := di.(binding.Untyped)
-
-            value, err := uriBinding.Get()
-
+        func(i int, o fyne.CanvasObject) {
+			uri, err := dataList.GetValue(i)
             if err != nil {
                 slog.Error("Error Getting Uri", "error", err)
                 return
             }
 
-            uriChecked := value.(*model.UriChecked)
-
-            checkBox := co.(*DraggableCheck)
-
-            checkBox.SetText(uriChecked.Uri.Name())
-            checkBox.Checked = uriChecked.Checked
-            checkBox.OnChanged = func(b bool) {
-                if uriChecked.Checked != b {
-                    if b {
-                        IncrementIntBinding(checkedCount) 
-                    } else {
-                        DecrementIntBinding(checkedCount)
-                    }
-                }
-                uriChecked.Checked = b
+            fileItem := o.(*FileItem)
+            fileItem.SetUri(uri)
+            fileItem.RemoveButton.OnTapped = func () {
+                dataList.Remove(uri)
             }
-            // Call refresh to ensure checkbox is updated
-            // with visual state
-            checkBox.Refresh() 
-        },
+		},
     )
 
+	dataList.AddListener(binding.NewDataListener(fileList.Refresh))
+
     fileList.DataList = dataList
-    fileList.CheckedCount = checkedCount
 
     fileList.ExtendBaseWidget(fileList)
     fileList.Show()
@@ -120,23 +86,18 @@ func (fileList *FileList) AppendItem(uri fyne.URI) error {
         return errors.New(fmt.Sprintf("%s is not a pdf", uri.Path()))
     }
 
-    fileList.DataList.Append(&model.UriChecked{
-        Uri: uri,
-        Checked: true,
-    })
-
-    IncrementIntBinding(fileList.CheckedCount)
+    fileList.DataList.Append(uri)
 
     return nil
 }
 
-func (fileList *FileList) GetItem(index int) (*model.UriChecked, error) {
+func (fileList *FileList) GetItem(index int) (fyne.URI, error) {
     value, err := fileList.DataList.GetValue(index)
 
     if err != nil {
         return nil, err
     }
 
-    return value.(*model.UriChecked), err
+    return value, err
 }
 

@@ -23,15 +23,13 @@ func MergePdfs(inPdfs *types.FileList, outPdf string) error {
 
     slice := []string{}
     for i := 0; i < inPdfs.Length(); i++ {
-        uriChecked, err := inPdfs.GetItem(i)
+        uri, err := inPdfs.GetItem(i)
 
         if err != nil {
             return err
         }
 
-        if uriChecked.Checked {
-            slice = append(slice, uriChecked.Uri.Path())
-        }
+        slice = append(slice, uri.Path())
     }
 
     if len(slice) == 0 {
