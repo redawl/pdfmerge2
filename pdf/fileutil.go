@@ -82,9 +82,7 @@ func SaveFileDialog(window fyne.Window, filesList *types.FileList) (*widget.Butt
     return mergePdfsButton
 }
 
-func AddFilesDialog(window fyne.Window, filesList *types.FileList) (*widget.Button, *widget.Label) {
-    fileCountLabel := widget.NewLabel("(0 files)")
-
+func AddFilesDialog(window fyne.Window, filesList *types.FileList) (*widget.Button) {
     openFolderDialog := dialog.NewFolderOpen(func (reader fyne.ListableURI, err error) {
         if err != nil {
             slog.Error("Error occurred during selection of folder", "error", err)
@@ -155,6 +153,6 @@ func AddFilesDialog(window fyne.Window, filesList *types.FileList) (*widget.Butt
         }
     })
 
-    return addFilesButton, fileCountLabel
+    return addFilesButton
 }
 

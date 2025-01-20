@@ -26,33 +26,13 @@ func newList(length func() int, createItem func() fyne.CanvasObject, updateItem 
 	return list
 }
 
-func IncrementIntBinding(intBinding binding.Int) {
-    value, err := intBinding.Get()
-    if err != nil {
-        slog.Error("Error!", "error", err)
-        panic(err)
-    }
-
-    intBinding.Set(value + 1)
-}
-
-func DecrementIntBinding(intBinding binding.Int) {
-    value, err := intBinding.Get()
-    if err != nil {
-        slog.Error("Error!", "error", err)
-        panic(err)
-    }
-
-    intBinding.Set(value - 1)
-}
-
 func NewFileList () (*FileList) {
     dataList := binding.NewURIList()
-
-    fileList := newList(
+    fileList := &FileList{}
+    fileList = newList(
         dataList.Length,
         func() fyne.CanvasObject {
-            fileItem := NewFileItem(nil, func() {})
+            fileItem := NewFileItem(nil, func() {}, func() {}, func() {})
             
             return fileItem
         },
@@ -68,10 +48,73 @@ func NewFileList () (*FileList) {
             fileItem.RemoveButton.OnTapped = func () {
                 dataList.Remove(uri)
             }
+
+            fileItem.MoveUpButton.OnTapped = func() {
+                if i != 0 {
+                    uriItem, err := dataList.GetItem(i)
+                    if err != nil {
+                        slog.Error("Error getting item", "error", err)
+                        return
+                    }
+                    uriItem2, err := dataList.GetItem(i-1)
+                    if err != nil {
+                        slog.Error("Error getting item", "error", err)
+                        return
+                    }
+                    
+                    uri, err := uriItem.(binding.URI).Get()
+
+                    if err != nil {
+                        slog.Error("Error getting item", "error", err)
+                        return
+                    }
+                    uri2, err := uriItem2.(binding.URI).Get()
+
+                    if err != nil {
+                        slog.Error("Error getting item", "error", err)
+                        return
+                    }
+
+                    dataList.SetValue(i, uri2)
+                    dataList.SetValue(i-1, uri)
+                }
+                fileList.Refresh()
+            }
+            fileItem.MoveDownButton.OnTapped = func() {
+                if i != dataList.Length() - 1 {
+                    uriItem, err := dataList.GetItem(i)
+                    if err != nil {
+                        slog.Error("Error getting item", "error", err)
+                        return
+                    }
+                    uriItem2, err := dataList.GetItem(i+1)
+                    if err != nil {
+                        slog.Error("Error getting item", "error", err)
+                        return
+                    }
+                    
+                    uri, err := uriItem.(binding.URI).Get()
+
+                    if err != nil {
+                        slog.Error("Error getting item", "error", err)
+                        return
+                    }
+                    uri2, err := uriItem2.(binding.URI).Get()
+
+                    if err != nil {
+                        slog.Error("Error getting item", "error", err)
+                        return
+                    }
+
+                    dataList.SetValue(i, uri2)
+                    dataList.SetValue(i+1, uri)
+                }
+                fileList.Refresh()
+            }
 		},
     )
 
-	dataList.AddListener(binding.NewDataListener(fileList.Refresh))
+    dataList.AddListener(binding.NewDataListener(fileList.Refresh))
 
     fileList.DataList = dataList
 

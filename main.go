@@ -55,7 +55,7 @@ func main() {
     }
 
 
-    addFilesButton, fileCountLabel := pdf.AddFilesDialog(window, fileList)
+    addFilesButton := pdf.AddFilesDialog(window, fileList)
 
     mergePdfsButton := pdf.SaveFileDialog(window, fileList)
 
@@ -78,7 +78,7 @@ func main() {
                 headerIcon,
                 headerText,
             ),
-            container.NewHBox(addFilesButton, fileCountLabel),
+            container.NewHBox(addFilesButton),
         ),
         container.NewHBox(mergePdfsButton),
         nil,
