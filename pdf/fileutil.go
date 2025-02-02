@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -28,15 +29,7 @@ func SaveFileDialog(window fyne.Window, filesList *types.FileList) (*widget.Butt
             return
         }
 
-        if err := MergePdfs(filesList, writer.URI().Path()); err != nil {
-            slog.Error("Error merging pdfs", "error", err)
-            errorDialog := dialog.NewError(err, window)
-            errorDialog.Show()
-        } else {
-            slog.Debug("PDF saved successfully")
-            saveConfirmation := dialog.NewInformation("Success!", fmt.Sprintf("Saved merged pdf to %s successfully", writer.URI().Path()), window)
-            saveConfirmation.Show()
-        }
+        save(filesList, writer.URI().Path(), window)
     }, window)
 
     mergePdfsButton := widget.NewButton("Merge", func() {
@@ -66,20 +59,41 @@ func SaveFileDialog(window fyne.Window, filesList *types.FileList) (*widget.Butt
             } else if !success {
                 slog.Error("User clicked cancel or didn't pick any files")
             } else {
-                if err := MergePdfs(filesList, saveFile); err != nil {
-                    slog.Error("Error merging pdfs", "error", err)
-                    errorDialog := dialog.NewError(err, window)
-                    errorDialog.Show()
-                } else {
-                    slog.Debug("PDF saved successfully")
-                    saveConfirmation := dialog.NewInformation("Success!", fmt.Sprintf("Saved merged pdf to %s successfully", saveFile), window)
-                    saveConfirmation.Show()
-                }
+                save(filesList, saveFile, window)
             }
         }
     })
 
     return mergePdfsButton
+}
+
+func save(filesList *types.FileList, saveFile string, window fyne.Window) {
+    if !strings.HasSuffix(saveFile, ".pdf") {
+        slog.Info("file doesn't have pdf on end", "name", saveFile)
+        saveFile += ".pdf"
+        slog.Info("file has pdf on end", "name", saveFile)
+    } else {
+        slog.Info("file had pdf on end", "name", saveFile)
+    }
+    
+    if _, err := os.Stat(saveFile); !errors.Is(err, os.ErrNotExist) {
+        newError := fmt.Errorf("Cannot save pdf to %s: file exists", saveFile)
+        slog.Error("Error merging pdfs", "error", newError)
+        errorDialog := dialog.NewError(newError, window)
+        errorDialog.Show()
+        return
+    }
+
+    if err := MergePdfs(filesList, saveFile); err != nil {
+        slog.Error("Error merging pdfs", "error", err)
+        errorDialog := dialog.NewError(err, window)
+        errorDialog.Show()
+        return
+    } else {
+        slog.Debug("PDF saved successfully")
+        saveConfirmation := dialog.NewInformation("Success!", fmt.Sprintf("Saved merged pdf to %s successfully", saveFile), window)
+        saveConfirmation.Show()
+    }
 }
 
 func AddFilesDialog(window fyne.Window, filesList *types.FileList) (*widget.Button) {
@@ -99,14 +113,12 @@ func AddFilesDialog(window fyne.Window, filesList *types.FileList) (*widget.Butt
             return
         }
 
-        for i := 0; i < len(fileList); i++ {
-            file := fileList[i]
+        for _, file := range(fileList) {
             if strings.HasSuffix(file.Name(), ".pdf") {
                 slog.Debug("Found pdf", "name", file.Name())
                 filesList.AppendItem(file)
             }
         }
-
     }, window)
 
     addFilesButton := widget.NewButton("Add files", func() {
@@ -132,7 +144,6 @@ func AddFilesDialog(window fyne.Window, filesList *types.FileList) (*widget.Butt
             },
         }.OpenMultiple()
 
-
         if err != nil {
             slog.Error("Error using native filepicker", "error", err)
         } else if !success {
@@ -143,8 +154,7 @@ func AddFilesDialog(window fyne.Window, filesList *types.FileList) (*widget.Butt
                 return
             }
 
-            for i := 0; i < len(fileList); i++ {
-                file := fileList[i]
+            for _, file := range(fileList) {
                 if strings.HasSuffix(file, ".pdf") {
                     slog.Debug("Found pdf", "name", file)
                     filesList.AppendItem(storage.NewFileURI(file))
