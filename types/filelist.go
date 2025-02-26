@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -125,7 +126,7 @@ func NewFileList () (*FileList) {
 
 func (fileList *FileList) AppendItem(uri fyne.URI) error {
     if !strings.HasSuffix(uri.Path(), ".pdf") {
-        return fmt.Errorf("%s is not a pdf", uri.Path())
+        return errors.New(fmt.Sprintf("%s is not a pdf", uri.Path()))
     }
 
     fileList.DataList.Append(uri)

@@ -18,13 +18,13 @@ type FileItem struct {
     Uri fyne.URI
     initialX float32
     initialY float32
+    OnDragged func(event *fyne.DragEvent)
 }
 
 func NewFileItem (uri fyne.URI, onRemove func (), onMoveUp func(), onMoveDown func()) (*FileItem) {
     if uri == nil {
-        uri = storage.NewFileURI("")
+        uri = storage.NewFileURI("/pdf.pdf")
     }
-
     fileItem := &FileItem{
         Label: *widget.NewLabel(uri.Name()),
         RemoveButton: *widget.NewButton("Remove", onRemove),
@@ -45,7 +45,6 @@ func (fileItem *FileItem) SetUri (uri fyne.URI) {
     fileItem.Label.SetText(uri.Name())
     fileItem.Label.Refresh()
     fileItem.Icon.SetURI(uri)
-    fileItem.Icon.Refresh()
     fileItem.Uri = uri
 
     fileItem.Refresh()

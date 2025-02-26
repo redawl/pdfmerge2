@@ -21,8 +21,7 @@ func MergePdfs(inPdfs *types.FileList, outPdf string) error {
         return errors.New("Error occurred when saving file. Check log for more info")
     }
 
-    pdfList := make([]string, inPdfs.Length())
-
+    slice := []string{}
     for i := 0; i < inPdfs.Length(); i++ {
         uri, err := inPdfs.GetItem(i)
 
@@ -30,18 +29,18 @@ func MergePdfs(inPdfs *types.FileList, outPdf string) error {
             return err
         }
 
-        pdfList[i] = uri.Path()
+        slice = append(slice, uri.Path())
     }
 
-    if len(pdfList) == 0 {
+    if len(slice) == 0 {
         slog.Info("No pdfs where checked in the list")
         return errors.New("Error occurred when saving file. Check log for more info")
     }
 
-    slog.Debug("Merging pdfs", "inPdfs", pdfList, "outPdf", outPdf)
-    if err := api.MergeCreateFile(pdfList, outPdf, false, config); err != nil {
+    slog.Debug("Merging pdfs", "inPdfs", slice, "outPdf", outPdf)
+    if err := api.MergeCreateFile(slice, outPdf, false, config); err != nil {
         slog.Error("Error merging pdfs", "error", err)
-        return fmt.Errorf("Error merging pdfs: Error: %s", err.Error())
+        return errors.New(fmt.Sprintf("Error merging pdfs: Error: %s", err.Error()))
     }
 
     return nil
