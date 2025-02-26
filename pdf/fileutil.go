@@ -28,15 +28,8 @@ func SaveFileDialog(window fyne.Window, filesList *types.FileList) (*widget.Butt
             return
         }
 
-        if err := MergePdfs(filesList, writer.URI().Path()); err != nil {
-            slog.Error("Error merging pdfs", "error", err)
-            errorDialog := dialog.NewError(err, window)
-            errorDialog.Show()
-        } else {
-            slog.Debug("PDF saved successfully")
-            saveConfirmation := dialog.NewInformation("Success!", fmt.Sprintf("Saved merged pdf to %s successfully", writer.URI().Path()), window)
-            saveConfirmation.Show()
-        }
+        save(filesList, writer.URI().Path(), window)
+
     }, window)
 
     mergePdfsButton := widget.NewButton("Merge", func() {
@@ -66,15 +59,7 @@ func SaveFileDialog(window fyne.Window, filesList *types.FileList) (*widget.Butt
             } else if !success {
                 slog.Error("User clicked cancel or didn't pick any files")
             } else {
-                if err := MergePdfs(filesList, saveFile); err != nil {
-                    slog.Error("Error merging pdfs", "error", err)
-                    errorDialog := dialog.NewError(err, window)
-                    errorDialog.Show()
-                } else {
-                    slog.Debug("PDF saved successfully")
-                    saveConfirmation := dialog.NewInformation("Success!", fmt.Sprintf("Saved merged pdf to %s successfully", saveFile), window)
-                    saveConfirmation.Show()
-                }
+                save(filesList, saveFile, window)
             }
         }
     })
@@ -99,8 +84,7 @@ func AddFilesDialog(window fyne.Window, filesList *types.FileList) (*widget.Butt
             return
         }
 
-        for i := 0; i < len(fileList); i++ {
-            file := fileList[i]
+        for _, file := range fileList {
             if strings.HasSuffix(file.Name(), ".pdf") {
                 slog.Debug("Found pdf", "name", file.Name())
                 filesList.AppendItem(file)
@@ -143,8 +127,7 @@ func AddFilesDialog(window fyne.Window, filesList *types.FileList) (*widget.Butt
                 return
             }
 
-            for i := 0; i < len(fileList); i++ {
-                file := fileList[i]
+            for _, file := range fileList {
                 if strings.HasSuffix(file, ".pdf") {
                     slog.Debug("Found pdf", "name", file)
                     filesList.AppendItem(storage.NewFileURI(file))
@@ -156,3 +139,22 @@ func AddFilesDialog(window fyne.Window, filesList *types.FileList) (*widget.Butt
     return addFilesButton
 }
 
+func save (filesList *types.FileList, saveFile string, window fyne.Window) {
+    fileNames, err := filesList.GetFileNames()
+
+    if err != nil {
+        slog.Error("Error getting filesnames", "error", err)
+        errorDialog := dialog.NewError(err, window)
+        errorDialog.Show()
+    }
+
+    if err := MergePdfs(fileNames, saveFile); err != nil {
+        slog.Error("Error merging pdfs", "error", err)
+        errorDialog := dialog.NewError(err, window)
+        errorDialog.Show()
+    } else {
+        slog.Debug("PDF saved successfully")
+        saveConfirmation := dialog.NewInformation("Success!", fmt.Sprintf("Saved merged pdf to %s successfully", saveFile), window)
+        saveConfirmation.Show()
+    }
+}

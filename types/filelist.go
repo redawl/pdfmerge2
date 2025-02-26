@@ -1,7 +1,6 @@
 package types
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -126,7 +125,7 @@ func NewFileList () (*FileList) {
 
 func (fileList *FileList) AppendItem(uri fyne.URI) error {
     if !strings.HasSuffix(uri.Path(), ".pdf") {
-        return errors.New(fmt.Sprintf("%s is not a pdf", uri.Path()))
+        return fmt.Errorf("%s is not a pdf", uri.Path())
     }
 
     fileList.DataList.Append(uri)
@@ -142,5 +141,20 @@ func (fileList *FileList) GetItem(index int) (fyne.URI, error) {
     }
 
     return value, err
+}
+
+func (fileList *FileList) GetFileNames () ([]string, error) {
+    pdfList := make([]string, fileList.DataList.Length())
+    for i := 0; i < fileList.DataList.Length(); i++ {
+        uri, err := fileList.GetItem(i)
+
+        if err != nil {
+            return nil, err
+        }
+
+        pdfList[i] = uri.Path()
+    }
+
+    return pdfList, nil
 }
 
