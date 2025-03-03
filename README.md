@@ -5,3 +5,6 @@ Simple as that.
 
 ## Building
 Check out [The build action](/.github/workflows/build.yaml) for steps to build this application.
+
+## Screenshot
+![Screenshot](assets/screenshot.png)
