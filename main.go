@@ -50,7 +50,11 @@ func main() {
     for _, arg := range flag.Args() {
         if strings.HasSuffix(arg, ".pdf") {
             newUri := storage.NewFileURI(arg)
-            fileList.AppendItem(newUri)
+            err := fileList.AppendItem(newUri)
+
+            if err != nil {
+                slog.Error("filename from commandline is not a pdf", "pdf", arg)
+            }
         }
     }
 

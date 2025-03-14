@@ -87,7 +87,10 @@ func AddFilesDialog(window fyne.Window, filesList *types.FileList) (*widget.Butt
         for _, file := range fileList {
             if strings.HasSuffix(file.Name(), ".pdf") {
                 slog.Debug("Found pdf", "name", file.Name())
-                filesList.AppendItem(file)
+                if err := filesList.AppendItem(file); err != nil {
+                    slog.Error("Error appending item", "error", err)
+                    return
+                }
             }
         }
 
@@ -130,7 +133,10 @@ func AddFilesDialog(window fyne.Window, filesList *types.FileList) (*widget.Butt
             for _, file := range fileList {
                 if strings.HasSuffix(file, ".pdf") {
                     slog.Debug("Found pdf", "name", file)
-                    filesList.AppendItem(storage.NewFileURI(file))
+                    if err := filesList.AppendItem(storage.NewFileURI(file)); err != nil {
+                        slog.Error("Error appending item", "error", err)
+                        return
+                    }
                 }
             }
         }
@@ -158,3 +164,4 @@ func save (filesList *types.FileList, saveFile string, window fyne.Window) {
         saveConfirmation.Show()
     }
 }
+

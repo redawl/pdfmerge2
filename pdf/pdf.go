@@ -16,14 +16,13 @@ func MergePdfs(inPdfs []string, outPdf string) error {
         slog.Error("No outPdf name was specified")
         return errors.New("Error occurred when saving file. Check log for more info")
     } else if len(inPdfs) == 0 {
-        slog.Info("No inPdfs where specified")
+        slog.Error("No inPdfs where specified")
         return errors.New("Error occurred when saving file. Check log for more info")
     }
 
     slog.Debug("Merging pdfs", "inPdfs", inPdfs, "outPdf", outPdf)
     if err := api.MergeCreateFile(inPdfs, outPdf, false, config); err != nil {
-        slog.Error("Error merging pdfs", "error", err)
-        return errors.New(fmt.Sprintf("Error merging pdfs: Error: %s", err.Error()))
+        return fmt.Errorf("Error merging pdfs: Error: %s", err.Error())
     }
 
     return nil

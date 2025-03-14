@@ -45,7 +45,10 @@ func NewFileList () (*FileList) {
             fileItem := o.(*FileItem)
             fileItem.SetUri(uri)
             fileItem.RemoveButton.OnTapped = func () {
-                dataList.Remove(uri)
+                if err := dataList.Remove(uri); err != nil {
+                    slog.Error("Error removing uri", "uri", uri, "error", err)
+                    return
+                }
             }
 
             fileItem.MoveUpButton.OnTapped = func() {
@@ -74,8 +77,15 @@ func NewFileList () (*FileList) {
                         return
                     }
 
-                    dataList.SetValue(i, uri2)
-                    dataList.SetValue(i-1, uri)
+                    if err := dataList.SetValue(i, uri2); err != nil {
+                        slog.Error("Error setting value", "error", err)
+                        return
+                    }
+
+                    if err := dataList.SetValue(i-1, uri); err != nil {
+                        slog.Error("Error setting value", "error", err)
+                        return
+                    }
                 }
                 fileList.Refresh()
             }
@@ -105,9 +115,17 @@ func NewFileList () (*FileList) {
                         return
                     }
 
-                    dataList.SetValue(i, uri2)
-                    dataList.SetValue(i+1, uri)
+                    if err := dataList.SetValue(i, uri2); err != nil {
+                        slog.Error("Error setting value", "error", err)
+                        return
+                    }
+
+                    if err := dataList.SetValue(i+1, uri); err != nil {
+                        slog.Error("Error setting value", "error", err)
+                        return
+                    }
                 }
+
                 fileList.Refresh()
             }
 		},
@@ -128,7 +146,9 @@ func (fileList *FileList) AppendItem(uri fyne.URI) error {
         return fmt.Errorf("%s is not a pdf", uri.Path())
     }
 
-    fileList.DataList.Append(uri)
+    if err := fileList.DataList.Append(uri); err != nil {
+        return err
+    }
 
     return nil
 }
@@ -145,7 +165,7 @@ func (fileList *FileList) GetItem(index int) (fyne.URI, error) {
 
 func (fileList *FileList) GetFileNames () ([]string, error) {
     pdfList := make([]string, fileList.DataList.Length())
-    for i := 0; i < fileList.DataList.Length(); i++ {
+    for i := range fileList.DataList.Length() {
         uri, err := fileList.GetItem(i)
 
         if err != nil {
